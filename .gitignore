@@ -1,3 +1,4 @@
 Terraform/.terraform/
 Terraform/.terraform.lock.hcl
 Terraform/terraform.tfvars
+Terraform/lambda_function.py
