@@ -1,0 +1,9 @@
+aws_region         = "ur-region-no"
+ami_id             = "ami-0497a974f8d5dcef8"  # Ubuntu 24.04 x86 Singapore
+subnet_id          = "subnet-xxxxxxxxxxxxxx"          # your default VPC subnet
+supabase_url       = "https://ur-id.supabase.co"
+supabase_key       = "sb_secret_"
+supabase_bucket    = "bucketname"
+openrouter_api_key = "sk-or-v1-"
+setup_script_url   = "https://raw.githubusercontent.com/MKMithun2806/Project-Watchdog-V2/refs/heads/main/Scripts/setup.sh"
+api_key            = "some-long-random-string"
