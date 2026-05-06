@@ -30,6 +30,20 @@ tg() {
     -d "parse_mode=Markdown" > /dev/null
 }
 
+# ─────────────────────────────────────────
+# trap — fires on any unexpected failure
+# ─────────────────────────────────────────
+on_error() {
+  local exit_code=$?
+  local line=$1
+  tg "💀 *Malper crashed*%0ATarget: \`$TARGET\`%0ALine: \`$line\`%0AExit code: \`$exit_code\`%0ATerminating instance..."
+  INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+  REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+  aws ec2 terminate-instances --instance-ids "$INSTANCE_ID" --region "$REGION" || true
+}
+
+trap 'on_error $LINENO' ERR
+
 # --- mode flags ---
 case "${MODE:-normal}" in
   normal)
@@ -70,7 +84,7 @@ sudo docker run --rm \
 GRAPH=$(ls "$SCAN_DIR"/*_graph.json 2>/dev/null | head -1)
 if [[ -z "$GRAPH" ]]; then
   tg "❌ *netmalper failed* — no graph JSON produced"
-  echo "[!] netmalper produced no graph JSON"; exit 1
+  exit 1
 fi
 echo "[+] Graph: $GRAPH"
 
@@ -85,7 +99,7 @@ sudo vulnmalper $VULNMALPER_FLAGS "$(basename "$GRAPH")"
 REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.md 2>/dev/null | grep -v '_analysed_' | head -1)
 if [[ -z "$REPORT" ]]; then
   tg "❌ *vulnmalper failed* — no report produced"
-  echo "[!] vulnmalper produced no report"; exit 1
+  exit 1
 fi
 echo "[+] Report: $REPORT"
 
@@ -100,7 +114,7 @@ malper-analyse "$(basename "$REPORT")"
 SUMMARY=$(ls "$SCAN_DIR"/*_analysed_*.md 2>/dev/null | head -1)
 if [[ -z "$SUMMARY" ]]; then
   tg "❌ *malper-analyse failed* — no summary produced"
-  echo "[!] malper-analyse produced no summary"; exit 1
+  exit 1
 fi
 echo "[+] Summary: $SUMMARY"
 
@@ -125,7 +139,7 @@ upload_file() {
     --data-binary @"$file")
   if [[ "$res" != "200" ]]; then
     tg "❌ *Supabase upload failed* — $remote_name (HTTP $res)"
-    echo "[!] Upload failed for $remote_name (HTTP $res)"; exit 1
+    exit 1
   fi
   echo "[+] $remote_name uploaded"
 }
@@ -151,13 +165,11 @@ res=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
 
 if [[ "$res" != "201" ]]; then
   tg "❌ *DB insert failed* (HTTP $res)"
-  echo "[!] DB insert failed (HTTP $res)"; exit 1
+  exit 1
 fi
 
 echo "[+] Scan ID: $SCAN_ID"
-
 tg "✅ *Scan done\!*%0ATarget: \`$TARGET\`%0AScan ID: \`$SCAN_ID\`"
-
 echo "[+] Pipeline complete. Terminating instance..."
 
 # ─────────────────────────────────────────
