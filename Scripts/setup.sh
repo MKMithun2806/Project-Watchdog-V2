@@ -1,6 +1,34 @@
 #!/bin/bash
 set -e
 
+# ─────────────────────────────────────────
+# telegram notify function
+# ─────────────────────────────────────────
+tg() {
+  if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
+    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+      -d "chat_id=${TELEGRAM_CHAT_ID}" \
+      -d "text=$1" \
+      -d "parse_mode=Markdown" > /dev/null
+  fi
+}
+
+# ─────────────────────────────────────────
+# trap — fires on any unexpected failure
+# ─────────────────────────────────────────
+on_error() {
+  local exit_code=$?
+  local line=$1
+  tg "🛠️ *Setup failed*%0ATarget: \`$TARGET\`%0ALine: \`$line\`%0AExit: \`$exit_code\`%0A%0ATerminating..."
+  INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+  REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+  aws ec2 terminate-instances --instance-ids "$INSTANCE_ID" --region "$REGION" || true
+}
+
+trap 'on_error $LINENO' ERR
+
+tg "🛠️ *Starting setup...*%0ATarget: \`$TARGET\`%0AMode: \`$MODE\`"
+
 echo "[*] Starting Malper setup..."
 
 # --- base dependencies ---
@@ -95,6 +123,8 @@ curl -fsSL https://raw.githubusercontent.com/MKMithun2806/Project-Watchdog-V2/re
   -o /usr/local/bin/malper.sh
 chmod +x /usr/local/bin/malper.sh
 echo "[+] Orchestrator ready"
+
+tg "✅ *Setup complete!*%0AStarting orchestrator..."
 
 echo "[*] Starting orchestrator..."
 /usr/local/bin/malper.sh
