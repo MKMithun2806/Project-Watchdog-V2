@@ -76,7 +76,7 @@ echo "[+] chromium installed"
 
 echo ""
 echo "[*] Pulling orchestrator..."
-curl -fsSL https://raw.githubusercontent.com/MKMithun2806/Malper/main/malper.sh \
+curl -fsSL https://raw.githubusercontent.com/MKMithun2806/Project-Watchdog-V2/refs/heads/main/Scripts/malper.sh \
   -o /usr/local/bin/malper.sh
 chmod +x /usr/local/bin/malper.sh
 echo "[+] Orchestrator ready"
