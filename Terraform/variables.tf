@@ -6,3 +6,4 @@ variable "supabase_key"      { sensitive = true }
 variable "supabase_bucket"   { default = "recon-reports" }
 variable "openrouter_api_key" { sensitive = true }
 variable "setup_script_url"  {}  # GitHub raw URL for setup.sh
+variable "api_key"          { sensitive = true }

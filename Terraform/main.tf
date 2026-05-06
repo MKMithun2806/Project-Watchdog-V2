@@ -124,6 +124,7 @@ resource "aws_lambda_function" "malper" {
       SUPABASE_BUCKET  = var.supabase_bucket
       OPENROUTER_API_KEY = var.openrouter_api_key
       SETUP_SCRIPT_URL = var.setup_script_url
+      API_KEY          = var.api_key
     }
   }
 }
