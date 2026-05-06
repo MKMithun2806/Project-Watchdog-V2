@@ -21,7 +21,9 @@ sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 sudo systemctl enable docker
 sudo systemctl start docker
-sudo usermod -aG docker "$USER" || true
+if [ -n "$USER" ] && [ "$USER" != "root" ]; then
+  sudo usermod -aG docker "$USER" || true
+fi
 echo "[+] Docker installed"
 
 # --- aws cli ---
@@ -70,9 +72,22 @@ httpx -version
 echo "[+] httpx installed"
 
 # --- chromium ---
-echo "[*] Installing chromium..."
-sudo apt-get install -y chromium-browser
-echo "[+] chromium installed"
+if [ "$MODE" == "head" ]; then
+  echo "[*] Installing chromium..."
+  # Ubuntu 22.04 chromium-browser is a snap. Ensure snapd is ready.
+  sudo systemctl start snapd || true
+  # Attempt installation with retries due to potential snap store timeouts
+  for i in {1..5}; do
+    if sudo apt-get install -y chromium-browser; then
+      echo "[+] chromium installed"
+      break
+    fi
+    echo "[!] Chromium installation failed, retrying in 10s ($i/5)..."
+    sleep 10
+  done
+else
+  echo "[*] Skipping chromium (MODE is not 'head')"
+fi
 
 echo ""
 echo "[*] Pulling orchestrator..."
