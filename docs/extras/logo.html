@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WATCHDOG LOGO</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --accent-color: #00d4ff;
+            --text-color: #ffffff;
+            --secondary-color: #333333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .logo-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .icon-wrapper {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px;
+        }
+
+        /* Hexagon Base */
+        .hexagon {
+            fill: none;
+            stroke: var(--accent-color);
+            stroke-width: 4;
+            stroke-dasharray: 600;
+            animation: draw 3s ease-in-out infinite alternate;
+        }
+
+        /* Stylized Eye/Lens */
+        .lens {
+            fill: none;
+            stroke: var(--text-color);
+            stroke-width: 2;
+        }
+
+        /* Scanning Line */
+        .scanner-line {
+            position: absolute;
+            top: 0;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            box-shadow: 0 0 15px var(--accent-color);
+            animation: scan 4s linear infinite;
+        }
+
+        .text-wrapper {
+            letter-spacing: 12px;
+            margin-top: 20px;
+        }
+
+        .brand-name {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--text-color);
+            text-transform: uppercase;
+            margin: 0;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .tagline {
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            font-weight: 300;
+            text-transform: uppercase;
+            margin-top: 10px;
+            letter-spacing: 4px;
+        }
+
+        @keyframes draw {
+            0% { stroke-dashoffset: 600; opacity: 0.5; }
+            100% { stroke-dashoffset: 0; opacity: 1; }
+        }
+
+        @keyframes scan {
+            0% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 90%; opacity: 0; }
+        }
+
+        /* Decorative Grid */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 212, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    
+    <div class="logo-container">
+        <div class="icon-wrapper">
+            <div class="scanner-line"></div>
+            <svg viewBox="0 0 100 100" width="100%" height="100%">
+                <!-- Hexagon Frame -->
+                <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="hexagon" />
+                
+                <!-- Inner Eye/Camera -->
+                <circle cx="50" cy="50" r="15" class="lens" />
+                <circle cx="50" cy="50" r="5" fill="var(--accent-color)" />
+                
+                <!-- Aperture Lines -->
+                <line x1="50" y1="35" x2="50" y2="25" stroke="white" stroke-width="1" />
+                <line x1="50" y1="65" x2="50" y2="75" stroke="white" stroke-width="1" />
+                <line x1="35" y1="50" x2="25" y2="50" stroke="white" stroke-width="1" />
+                <line x1="65" y1="50" x2="75" y2="50" stroke="white" stroke-width="1" />
+            </svg>
+        </div>
+        
+        <div class="text-wrapper">
+            <h1 class="brand-name">WATCHDOG</h1>
+            <div class="tagline">Automated Reconnaissance V2</div>
+        </div>
+    </div>
+</body>
+</html>

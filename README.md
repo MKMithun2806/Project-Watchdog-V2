@@ -1,6 +1,13 @@
-# PROJECT WATCHDOG V2
----
-### Automated Security Reconnaissance and Intelligence Pipeline
+<p align="center">
+  <img src="docs/extras/logo.svg" width="200" alt="WATCHDOG LOGO">
+</p>
+
+<h1 align="center">PROJECT WATCHDOG V2</h1>
+
+<p align="center">
+  <strong>Automated Security Reconnaissance and Intelligence Pipeline</strong>
+</p>
+
 ---
 
 Project Watchdog is a high-performance, automated reconnaissance and vulnerability scanning pipeline. Engineered for speed and scalability, it leverages a serverless AWS architecture to deploy ephemeral, tool-rich scanning environments on demand.
@@ -72,6 +79,12 @@ curl -X POST https://<your-api-endpoint>/scan \
 | **normal** | t3.small | Balanced for speed and cost. |
 | **stealth** | t3.large | Rate-limited to avoid detection. |
 | **head** | t3.large | Full browser rendering for complex JS targets. |
+
+---
+
+## EXTRAS
+
+*   **[PROJECT LOGO](docs/extras/logo.html)**: Interactive, high-tech HTML/CSS branding for the Watchdog project.
 
 ---
 

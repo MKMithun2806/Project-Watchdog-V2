@@ -1,0 +1,14 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Hexagon Frame -->
+  <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="none" stroke="#00d4ff" stroke-width="4" />
+  
+  <!-- Inner Eye/Camera -->
+  <circle cx="50" cy="50" r="15" fill="none" stroke="#ffffff" stroke-width="2" />
+  <circle cx="50" cy="50" r="5" fill="#00d4ff" />
+  
+  <!-- Aperture Lines -->
+  <line x1="50" y1="35" x2="50" y2="25" stroke="#ffffff" stroke-width="1" />
+  <line x1="50" y1="65" x2="50" y2="75" stroke="#ffffff" stroke-width="1" />
+  <line x1="35" y1="50" x2="25" y2="50" stroke="#ffffff" stroke-width="1" />
+  <line x1="65" y1="50" x2="75" y2="50" stroke="#ffffff" stroke-width="1" />
+</svg>
