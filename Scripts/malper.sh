@@ -36,7 +36,8 @@ tg() {
 on_error() {
   local exit_code=$?
   local line=$1
-  tg "💀 *Malper crashed*%0ATarget: \`$TARGET\`%0ALine: \`$line\`%0AExit code: \`$exit_code\`%0ATerminating instance..."
+  local last_log=$(tail -5 /var/log/malper.log 2>/dev/null | tr '\n' '|')
+  tg "💀 *Malper crashed*%0ATarget: \`$TARGET\`%0ALine: \`$line\`%0AExit: \`$exit_code\`%0A%0A*Last logs:*%0A\`$last_log\`%0A%0ATerminating..."
   INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
   REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
   aws ec2 terminate-instances --instance-ids "$INSTANCE_ID" --region "$REGION" || true
@@ -79,7 +80,7 @@ echo "[*] Running netmalper..."
 sudo docker run --rm \
   -v "$SCAN_DIR":/app \
   mitchaster/malper-suite:latest \
-  "$TARGET"
+  "$TARGET" 2>&1 | tee -a /var/log/malper.log
 
 GRAPH=$(ls "$SCAN_DIR"/*_graph.json 2>/dev/null | head -1)
 if [[ -z "$GRAPH" ]]; then
@@ -94,7 +95,7 @@ echo "[+] Graph: $GRAPH"
 tg "🔎 *vulnmalper started*%0AMode: \`${MODE:-normal}\`"
 echo "[*] Running vulnmalper (mode: ${MODE:-normal})..."
 cd "$SCAN_DIR"
-sudo vulnmalper $VULNMALPER_FLAGS "$(basename "$GRAPH")"
+sudo vulnmalper $VULNMALPER_FLAGS "$(basename "$GRAPH")" 2>&1 | tee -a /var/log/malper.log
 
 REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.md 2>/dev/null | grep -v '_analysed_' | head -1)
 if [[ -z "$REPORT" ]]; then
@@ -109,7 +110,7 @@ echo "[+] Report: $REPORT"
 tg "🧠 *malper-analyse started*"
 echo "[*] Running malper-analyse..."
 cd "$SCAN_DIR"
-malper-analyse "$(basename "$REPORT")"
+malper-analyse "$(basename "$REPORT")" 2>&1 | tee -a /var/log/malper.log
 
 SUMMARY=$(ls "$SCAN_DIR"/*_analysed_*.md 2>/dev/null | head -1)
 if [[ -z "$SUMMARY" ]]; then
