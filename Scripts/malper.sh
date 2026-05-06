@@ -3,6 +3,7 @@ set -e
 
 # env vars injected by Lambda via user data:
 # TARGET, MODE, SUPABASE_URL, SUPABASE_KEY, SUPABASE_BUCKET, OPENROUTER_API_KEY
+# TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 if [[ -z "$TARGET" ]]; then
   echo "[!] TARGET not set"; exit 1
@@ -13,8 +14,21 @@ fi
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_KEY" || -z "$SUPABASE_BUCKET" ]]; then
   echo "[!] Missing Supabase env vars"; exit 1
 fi
+if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
+  echo "[!] Missing Telegram env vars"; exit 1
+fi
 
 export OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
+
+# ─────────────────────────────────────────
+# telegram notify function
+# ─────────────────────────────────────────
+tg() {
+  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    -d "chat_id=${TELEGRAM_CHAT_ID}" \
+    -d "text=$1" \
+    -d "parse_mode=Markdown" > /dev/null
+}
 
 # --- mode flags ---
 case "${MODE:-normal}" in
@@ -41,9 +55,12 @@ SCAN_BASE="/opt/malper/scans"
 SCAN_DIR="$SCAN_BASE/$TARGET"
 mkdir -p "$SCAN_DIR"
 
+tg "🟢 *Malper Online*%0ATarget: \`$TARGET\` | Mode: \`${MODE:-normal}\`"
+
 # ─────────────────────────────────────────
 # 1. netmalper (docker)
 # ─────────────────────────────────────────
+tg "🔍 *netmalper started*%0ATarget: \`$TARGET\`"
 echo "[*] Running netmalper..."
 sudo docker run --rm \
   -v "$SCAN_DIR":/app \
@@ -52,6 +69,7 @@ sudo docker run --rm \
 
 GRAPH=$(ls "$SCAN_DIR"/*_graph.json 2>/dev/null | head -1)
 if [[ -z "$GRAPH" ]]; then
+  tg "❌ *netmalper failed* — no graph JSON produced"
   echo "[!] netmalper produced no graph JSON"; exit 1
 fi
 echo "[+] Graph: $GRAPH"
@@ -59,12 +77,14 @@ echo "[+] Graph: $GRAPH"
 # ─────────────────────────────────────────
 # 2. vulnmalper
 # ─────────────────────────────────────────
+tg "🔎 *vulnmalper started*%0AMode: \`${MODE:-normal}\`"
 echo "[*] Running vulnmalper (mode: ${MODE:-normal})..."
 cd "$SCAN_DIR"
 sudo vulnmalper $VULNMALPER_FLAGS "$(basename "$GRAPH")"
 
 REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.md 2>/dev/null | grep -v '_analysed_' | head -1)
 if [[ -z "$REPORT" ]]; then
+  tg "❌ *vulnmalper failed* — no report produced"
   echo "[!] vulnmalper produced no report"; exit 1
 fi
 echo "[+] Report: $REPORT"
@@ -72,12 +92,14 @@ echo "[+] Report: $REPORT"
 # ─────────────────────────────────────────
 # 3. malper-analyse
 # ─────────────────────────────────────────
+tg "🧠 *malper-analyse started*"
 echo "[*] Running malper-analyse..."
 cd "$SCAN_DIR"
 malper-analyse "$(basename "$REPORT")"
 
 SUMMARY=$(ls "$SCAN_DIR"/*_analysed_*.md 2>/dev/null | head -1)
 if [[ -z "$SUMMARY" ]]; then
+  tg "❌ *malper-analyse failed* — no summary produced"
   echo "[!] malper-analyse produced no summary"; exit 1
 fi
 echo "[+] Summary: $SUMMARY"
@@ -85,6 +107,7 @@ echo "[+] Summary: $SUMMARY"
 # ─────────────────────────────────────────
 # 4. push to supabase
 # ─────────────────────────────────────────
+tg "☁️ *Pushing to Supabase...*"
 echo "[*] Pushing to Supabase..."
 
 SCAN_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
@@ -101,6 +124,7 @@ upload_file() {
     -H "Content-Type: application/octet-stream" \
     --data-binary @"$file")
   if [[ "$res" != "200" ]]; then
+    tg "❌ *Supabase upload failed* — $remote_name (HTTP $res)"
     echo "[!] Upload failed for $remote_name (HTTP $res)"; exit 1
   fi
   echo "[+] $remote_name uploaded"
@@ -126,10 +150,14 @@ res=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   }")
 
 if [[ "$res" != "201" ]]; then
+  tg "❌ *DB insert failed* (HTTP $res)"
   echo "[!] DB insert failed (HTTP $res)"; exit 1
 fi
 
 echo "[+] Scan ID: $SCAN_ID"
+
+tg "✅ *Scan done\!*%0ATarget: \`$TARGET\`%0AScan ID: \`$SCAN_ID\`"
+
 echo "[+] Pipeline complete. Terminating instance..."
 
 # ─────────────────────────────────────────

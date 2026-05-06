@@ -66,6 +66,8 @@ resource "aws_iam_role_policy" "malper_lambda_policy" {
         Action = [
           "ec2:RunInstances",
           "ec2:DescribeInstances",
+          "ec2:CreateTags",
+          "ssm:StartSession",
           "iam:PassRole"
         ]
         Resource = "*"
@@ -78,6 +80,32 @@ resource "aws_iam_role_policy" "malper_lambda_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "arn:aws:logs:*:*:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "malper_ec2_policy" {
+  name = "malper-ec2-policy"
+  role = aws_iam_role.malper_ec2.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "ec2:TerminateInstances"
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:UpdateInstanceInformation",
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -114,7 +142,6 @@ resource "aws_lambda_function" "malper" {
 
   environment {
     variables = {
-      AWS_REGION       = var.aws_region
       AMI_ID           = var.ami_id
       SUBNET_ID        = var.subnet_id
       SG_ID            = aws_security_group.malper_ec2.id
@@ -123,8 +150,10 @@ resource "aws_lambda_function" "malper" {
       SUPABASE_KEY     = var.supabase_key
       SUPABASE_BUCKET  = var.supabase_bucket
       OPENROUTER_API_KEY = var.openrouter_api_key
-      SETUP_SCRIPT_URL = var.setup_script_url
+      SETUP_SCRIPT_URL   = var.setup_script_url
       API_KEY          = var.api_key
+      TELEGRAM_BOT_TOKEN = var.telegram_bot_token
+      TELEGRAM_CHAT_ID   = var.telegram_chat_id
     }
   }
 }
