@@ -2,12 +2,10 @@
   <img src="docs/extras/logo.svg" width="200" alt="WATCHDOG LOGO">
 </p>
 
-<p align="center">
-  <img src="docs/extras/title.svg" width="400" alt="PROJECT WATCHDOG">
-</p>
+<h1 align="center">PROJECT WATCHDOG</h1>
 
 <p align="center">
-  <font color="#00d4ff"><strong>Automated Security Reconnaissance and Intelligence Pipeline</strong></font>
+  <strong>Automated Security Reconnaissance and Intelligence Pipeline</strong>
 </p>
 
 ---
