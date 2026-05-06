@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/extras/title.svg" width="500" alt="PROJECT WATCHDOG">
+  <img src="docs/extras/title.svg" width="400" alt="PROJECT WATCHDOG">
 </p>
 
 <p align="center">
