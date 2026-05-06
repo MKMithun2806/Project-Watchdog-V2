@@ -1,52 +1,60 @@
-# Project Watchdog V2
+# PROJECT WATCHDOG V2
+---
+### Automated Security Reconnaissance and Intelligence Pipeline
+---
 
-Project Watchdog is an automated reconnaissance and vulnerability scanning pipeline designed for efficiency and scalability. It leverages AWS serverless components to trigger ephemeral scanning environments, storing results in a central database and providing real-time updates via Telegram.
+Project Watchdog is a high-performance, automated reconnaissance and vulnerability scanning pipeline. Engineered for speed and scalability, it leverages a serverless AWS architecture to deploy ephemeral, tool-rich scanning environments on demand.
 
-## Overview
+## ARCHITECTURAL OVERVIEW
 
-The system is triggered via a webhook, which initiates a specialized pipeline:
+The system operates on a "Trigger-and-Terminate" model, ensuring maximum cost-efficiency and security isolation.
 
-1.  **Orchestration**: AWS Lambda validates the request and launches an EC2 Spot Instance.
-2.  **Environment Setup**: The EC2 instance automatically bootstraps itself with necessary tools and dependencies.
-3.  **Execution**: A series of security tools (netmalper, vulnmalper, malper-analyse) are executed in sequence.
-4.  **AI Analysis**: Results are analyzed using LLMs via OpenRouter to provide actionable insights.
-5.  **Storage**: Final reports and metadata are pushed to Supabase.
-6.  **Reporting**: Real-time status updates and completion alerts are sent via Telegram.
-7.  **Cleanup**: The EC2 instance terminates itself immediately upon completion or failure.
+1.  **Ingress**: A secure webhook hits the API Gateway.
+2.  **Orchestration**: AWS Lambda validates the request and provisions an EC2 Spot Instance.
+3.  **Bootstrapping**: The instance executes a specialized setup sequence, installing a full suite of security tools in seconds.
+4.  **Intelligence Gathering**:
+    *   **Network Mapping**: netmalper generates a comprehensive attack surface graph.
+    *   **Vulnerability Discovery**: vulnmalper identifies potential entry points.
+    *   **AI Synthesis**: malper-analyse uses Large Language Models to interpret raw data into actionable intelligence.
+5.  **Exfiltration**: Results are securely pushed to a Supabase backend.
+6.  **Alerting**: Real-time status updates are dispatched via Telegram.
+7.  **Auto-Destruction**: The instance self-terminates immediately upon completion, leaving no footprint.
 
-## Key Features
+---
 
-*   **Automated Workflow**: Hands-off scanning from trigger to report.
-*   **Cost Efficiency**: Utilizes AWS Spot Instances and serverless architecture.
-*   **Comprehensive Scanning**: Integrates network mapping, vulnerability detection, and AI-driven analysis.
-*   **Real-time Notifications**: Instant feedback on scan progress via Telegram.
-*   **Scalable Architecture**: Independent environments for each scan target.
+## KEY CAPABILITIES
 
-## Repository Structure
+*   **Serverless Orchestration**: No idle infrastructure; pay only for active scan time.
+*   **AI-Enhanced Analysis**: Moves beyond raw tool output to provide human-readable summaries.
+*   **Rapid Deployment**: Tailored bootstrap scripts ensure tools are ready in under 2 minutes.
+*   **Isolated Environments**: Every target is scanned in a fresh, dedicated instance.
+*   **Instant Visibility**: Telegram integration provides a live "heartbeat" of the scanning process.
 
-*   `Scripts/`: Contains the orchestration and setup scripts for EC2 instances.
-*   `Terraform/`: Infrastructure as Code (IaC) files for deploying the AWS environment.
-*   `docs/`: Detailed documentation and setup guides.
-*   `examples/`: Sample configurations and payloads.
+---
 
-## Prerequisites
+## REPOSITORY ARCHITECTURE
 
-*   AWS Account with appropriate permissions.
-*   Supabase project for data storage.
-*   OpenRouter API key for analysis.
-*   Telegram Bot for notifications.
-*   Terraform and AWS CLI for deployment.
+*   `Scripts/` : The "Brain" - Contains orchestrator and bootstrap logic.
+*   `Terraform/` : The "Skeleton" - Defines the entire AWS infrastructure.
+*   `docs/` : The "Manual" - Comprehensive guides for deployment and operation.
+*   `examples/` : The "Templates" - Payload and configuration examples.
 
-## Getting Started
+---
 
-For detailed installation and configuration instructions, please refer to the [Setup Guide](docs/setup.md).
+## GETTING STARTED
 
-### Quick Trigger
+> **Note**: This project requires an active AWS account and API keys for Supabase, OpenRouter, and Telegram.
 
-Once deployed, a scan can be initiated with a simple POST request:
+For complete, step-by-step instructions on deploying the pipeline, please consult our primary documentation:
+
+**[VIEW SETUP GUIDE](docs/setup.md)**
+
+### TRIGGERING A SCAN
+
+Once your infrastructure is live, initiate a scan using a standard HTTP client:
 
 ```bash
-curl -X POST https://<api-endpoint>/scan \
+curl -X POST https://<your-api-endpoint>/scan \
   -H "x-api-key: <your_secret_key>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -55,14 +63,18 @@ curl -X POST https://<api-endpoint>/scan \
   }'
 ```
 
-## Scan Modes
+---
 
-| Mode | Instance Type | Description |
-|------|---------------|-------------|
-| normal | t3.small | Standard scanning profile. |
-| stealth | t3.large | Rate-limited, polite scanning. |
-| head | t3.large | Polite scanning with headless browser capabilities. |
+## SCAN PROFILES
 
-## License
+| Profile | Compute Resource | Performance Characteristics |
+|:---|:---|:---|
+| **normal** | t3.small | Balanced for speed and cost. |
+| **stealth** | t3.large | Rate-limited to avoid detection. |
+| **head** | t3.large | Full browser rendering for complex JS targets. |
 
-This project is intended for authorized security testing and research purposes only.
+---
+
+## USAGE POLICY
+
+**AUTHORIZED TESTING ONLY.** This software is designed for security professionals and researchers. Usage against targets without explicit permission is strictly prohibited and may be illegal.
