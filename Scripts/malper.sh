@@ -132,13 +132,16 @@ upload_file() {
   local file=$1
   local remote_name=$2
   echo "[*] Uploading $remote_name..."
+  local body
   local res
-  res=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+  body=$(curl -s -w "\n%{http_code}" -X POST \
     "$SUPABASE_URL/storage/v1/object/$SUPABASE_BUCKET/$REMOTE_FOLDER/$remote_name" \
     -H "Authorization: Bearer $SUPABASE_KEY" \
     -H "Content-Type: application/octet-stream" \
     --data-binary @"$file")
-  if [[ "$res" != "200" ]]; then
+  res=$(echo "$body" | tail -1)
+  echo "[*] Upload response for $remote_name: $res — $(echo "$body" | head -1)"
+  if [[ "$res" != "200" && "$res" != "201" ]]; then
     tg "❌ *Supabase upload failed* — $remote_name (HTTP $res)"
     exit 1
   fi
