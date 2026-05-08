@@ -1,7 +1,6 @@
 Terraform/.terraform/
 Terraform/.terraform.lock.hcl
 Terraform/terraform.tfvars
-Terraform/lambda_function.py
 Terraform/terraform.tfstate.backup
 Terraform/terraform.tfstate
 context.md
