@@ -31,6 +31,20 @@ tg() {
 }
 
 # ─────────────────────────────────────────
+# telegram send log file
+# ─────────────────────────────────────────
+send_log_file() {
+  [ -f /var/log/malper.log ] || return 0
+  local ts=$(date -u +"%Y-%m-%d %H:%M:%SZ")
+  local caption="📋 *Log:* \`$TARGET\` | \`${MODE:-normal}\` | $ts"
+  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+    -F "chat_id=${TELEGRAM_CHAT_ID}" \
+    -F "document=@/var/log/malper.log" \
+    -F "caption=$caption" \
+    -F "parse_mode=Markdown" > /dev/null
+}
+
+# ─────────────────────────────────────────
 # trap — fires on any unexpected failure
 # ─────────────────────────────────────────
 on_error() {
@@ -38,6 +52,7 @@ on_error() {
   local line=$1
   local last_log=$(tail -5 /var/log/malper.log 2>/dev/null | tr '\n' '|')
   tg "💀 *Malper crashed*%0ATarget: \`$TARGET\`%0ALine: \`$line\`%0AExit: \`$exit_code\`%0A%0A*Last logs:*%0A\`$last_log\`%0A%0ATerminating..."
+  send_log_file
   INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
   REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
   aws ec2 terminate-instances --instance-ids "$INSTANCE_ID" --region "$REGION" || true
@@ -175,6 +190,8 @@ fi
 echo "[+] Scan ID: $SCAN_ID"
 tg "✅ *Scan done\!*%0ATarget: \`$TARGET\`%0AScan ID: \`$SCAN_ID\`"
 echo "[+] Pipeline complete. Terminating instance..."
+
+send_log_file
 
 # ─────────────────────────────────────────
 # 5. terminate EC2

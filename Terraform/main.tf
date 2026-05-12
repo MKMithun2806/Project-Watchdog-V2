@@ -180,3 +180,46 @@ resource "aws_lambda_permission" "malper" {
 output "api_endpoint" {
   value = "${aws_apigatewayv2_stage.malper.invoke_url}/scan"
 }
+
+# ─── IAM user for dashboard ───
+resource "aws_iam_user" "dashboard" {
+  name = "watchdog-dashboard"
+}
+
+resource "aws_iam_user_policy" "dashboard_policy" {
+  name = "watchdog-dashboard-policy"
+  user = aws_iam_user.dashboard.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_access_key" "dashboard" {
+  user = aws_iam_user.dashboard.name
+}
+
+output "dashboard_access_key_id" {
+  value = aws_iam_access_key.dashboard.id
+}
+
+output "dashboard_secret_access_key" {
+  value     = aws_iam_access_key.dashboard.secret
+  sensitive = true
+}

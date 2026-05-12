@@ -31,6 +31,14 @@ tg "🛠️ *Starting setup...*%0ATarget: \`$TARGET\`%0AMode: \`$MODE\`"
 
 echo "[*] Starting Malper setup..."
 
+# --- swapfile ---
+echo "[*] Configuring swapfile..."
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
+
 # --- base dependencies ---
 echo "[*] Installing base dependencies..."
 sudo apt-get update
