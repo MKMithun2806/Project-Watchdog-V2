@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -o pipefail
 
 # env vars injected by Lambda via user data:
 # TARGET, MODE, SUPABASE_URL, SUPABASE_KEY, SUPABASE_BUCKET, OPENROUTER_API_KEY
