@@ -42,7 +42,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
 # --- base dependencies ---
 echo "[*] Installing base dependencies..."
 sudo apt-get update
-sudo apt-get install -y curl wget unzip python3 uuid-runtime ca-certificates gnupg lsb-release
+sudo apt-get install -y curl wget unzip python3 uuid-runtime ca-certificates gnupg lsb-release nmap
 
 # --- docker ---
 echo "[*] Installing Docker..."
