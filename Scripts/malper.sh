@@ -119,7 +119,7 @@ echo "[+] Graph: $GRAPH"
 tg "🔎 *vulnmalper started*%0AMode: \`${MODE:-normal}\`"
 echo "[*] Running vulnmalper (mode: ${MODE:-normal})..."
 cd "$SCAN_DIR"
-sudo vulnmalper $VULNMALPER_FLAGS "$(basename "$GRAPH")" 2>&1 | tee -a /var/log/malper.log
+sudo vulnmalper "$(basename "$GRAPH")" $VULNMALPER_FLAGS 2>&1 | tee -a /var/log/malper.log
 
 REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.md 2>/dev/null | grep -v '_analysed_' | head -1)
 if [[ -z "$REPORT" ]]; then
