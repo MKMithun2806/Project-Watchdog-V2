@@ -34,6 +34,7 @@ def lambda_handler(event, context):
     body = json.loads(event.get('body', '{}'))
     target = body.get('target', '').strip()
     mode   = body.get('mode', 'normal').strip().lower()
+    export_json = bool(body.get('export_json', False))
 
     INSTANCE_TYPE = 't3.small' if mode == 'normal' else 't3.large'
 
@@ -46,6 +47,7 @@ def lambda_handler(event, context):
     user_data = f"""#!/bin/bash
 export TARGET="{target}"
 export MODE="{mode}"
+export EXPORT_JSON="{'true' if export_json else 'false'}"
 export SUPABASE_URL="{SUPABASE_URL}"
 export SUPABASE_KEY="{SUPABASE_KEY}"
 export SUPABASE_BUCKET="{SUPABASE_BUCKET}"
@@ -103,5 +105,6 @@ bash /tmp/setup.sh >> /var/log/malper.log 2>&1
             'instance_id': instance_id,
             'target': target,
             'mode': mode,
+            'export_json': export_json,
         })
     }

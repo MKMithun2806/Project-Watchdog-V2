@@ -19,6 +19,8 @@ if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
   echo "[!] Missing Telegram env vars"; exit 1
 fi
 
+EXPORT_JSON="${EXPORT_JSON:-false}"
+
 export OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
 
 # ─────────────────────────────────────────
@@ -78,9 +80,15 @@ case "${MODE:-normal}" in
     ;;
 esac
 
+if [[ "$EXPORT_JSON" == "true" ]]; then
+  VULNMALPER_FLAGS="$VULNMALPER_FLAGS --export-json"
+  echo "[*] JSON export enabled"
+fi
+
 echo "[*] Target : $TARGET"
 echo "[*] Mode   : ${MODE:-normal}"
 echo "[*] Flags  : ${VULNMALPER_FLAGS:-none}"
+echo "[*] JSON   : ${EXPORT_JSON}"
 
 SCAN_BASE="/opt/malper/scans"
 SCAN_DIR="$SCAN_BASE/$TARGET"
@@ -119,6 +127,16 @@ if [[ -z "$REPORT" ]]; then
   exit 1
 fi
 echo "[+] Report: $REPORT"
+
+JSON_REPORT=""
+if [[ "$EXPORT_JSON" == "true" ]]; then
+  JSON_REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.json 2>/dev/null | head -1)
+  if [[ -z "$JSON_REPORT" ]]; then
+    echo "[!] JSON export was requested but no JSON file found — skipping"
+  else
+    echo "[+] JSON report: $JSON_REPORT"
+  fi
+fi
 
 # ─────────────────────────────────────────
 # 3. malper-analyse
@@ -168,6 +186,15 @@ upload_file "$GRAPH"   "attack_surface.json"
 upload_file "$REPORT"  "report.md"
 upload_file "$SUMMARY" "summary.md"
 
+if [[ -n "$JSON_REPORT" ]]; then
+  upload_file "$JSON_REPORT" "report.json"
+fi
+
+JSON_URL_FIELD=""
+if [[ -n "$JSON_REPORT" ]]; then
+  JSON_URL_FIELD=", \"json_url\": \"$REMOTE_FOLDER/report.json\""
+fi
+
 echo "[*] Inserting scan record..."
 res=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   "$SUPABASE_URL/rest/v1/recon_scans" \
@@ -181,6 +208,7 @@ res=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
     \"graph_url\": \"$REMOTE_FOLDER/attack_surface.json\",
     \"report_url\": \"$REMOTE_FOLDER/report.md\",
     \"summary_url\": \"$REMOTE_FOLDER/summary.md\"
+    $JSON_URL_FIELD
   }")
 
 if [[ "$res" != "201" ]]; then
