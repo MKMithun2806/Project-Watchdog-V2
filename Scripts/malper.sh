@@ -64,12 +64,15 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 # --- mode flags ---
+VULNMALPER_FLAGS=""
+NETMALPER_FLAGS=""
+
 case "${MODE:-normal}" in
   normal)
-    VULNMALPER_FLAGS=""
     ;;
   stealth)
-    VULNMALPER_FLAGS="--polite --quiet"
+    VULNMALPER_FLAGS="--polite --slow"
+    NETMALPER_FLAGS="--stealth"
     ;;
   head)
     VULNMALPER_FLAGS="--polite --quiet --headless"
@@ -87,7 +90,8 @@ fi
 
 echo "[*] Target : $TARGET"
 echo "[*] Mode   : ${MODE:-normal}"
-echo "[*] Flags  : ${VULNMALPER_FLAGS:-none}"
+echo "[*] V-Flags: ${VULNMALPER_FLAGS:-none}"
+echo "[*] N-Flags: ${NETMALPER_FLAGS:-none}"
 echo "[*] JSON   : ${EXPORT_JSON}"
 
 SCAN_BASE="/opt/malper/scans"
@@ -101,10 +105,10 @@ tg "🟢 *Malper Online*%0ATarget: \`$TARGET\` | Mode: \`${MODE:-normal}\`"
 # ─────────────────────────────────────────
 tg "🔍 *netmalper started*%0ATarget: \`$TARGET\`"
 echo "[*] Running netmalper..."
-sudo docker run --rm \
+sudo docker run --rm --network host \
   -v "$SCAN_DIR":/app \
   mitchaster/malper-suite:latest \
-  "$TARGET" 2>&1 | tee -a /var/log/malper.log
+  "$TARGET" $NETMALPER_FLAGS 2>&1 | tee -a /var/log/malper.log
 
 GRAPH=$(ls "$SCAN_DIR"/*_graph.json 2>/dev/null | head -1)
 if [[ -z "$GRAPH" ]]; then
