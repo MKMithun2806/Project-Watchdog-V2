@@ -2,19 +2,18 @@
 set -e
 
 # ─────────────────────────────────────────
-# telegram notify function
+# telegram notify
 # ─────────────────────────────────────────
 tg() {
-  if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
-    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-      -d "chat_id=${TELEGRAM_CHAT_ID}" \
-      -d "text=$1" \
-      -d "parse_mode=Markdown" > /dev/null
-  fi
+  [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]] || return 0
+  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    -d "chat_id=${TELEGRAM_CHAT_ID}" \
+    -d "text=$1" \
+    -d "parse_mode=Markdown" > /dev/null
 }
 
 # ─────────────────────────────────────────
-# trap — fires on any unexpected failure
+# trap
 # ─────────────────────────────────────────
 on_error() {
   local exit_code=$?
@@ -28,108 +27,188 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 tg "🛠️ *Starting setup...*%0ATarget: \`$TARGET\`%0AMode: \`$MODE\`"
-
 echo "[*] Starting Malper setup..."
 
-# --- swapfile ---
+# ─────────────────────────────────────────
+# swapfile
+# ─────────────────────────────────────────
 echo "[*] Configuring swapfile..."
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
+fallocate -l 4G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
-# --- base dependencies ---
+# ─────────────────────────────────────────
+# base deps
+# ─────────────────────────────────────────
 echo "[*] Installing base dependencies..."
-sudo apt-get update
-sudo apt-get install -y curl wget unzip python3 uuid-runtime ca-certificates gnupg lsb-release nmap
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq \
+  curl wget unzip python3 uuid-runtime \
+  ca-certificates gnupg lsb-release nmap
+echo "[+] Base deps installed"
 
-# --- docker ---
+# ─────────────────────────────────────────
+# docker
+# ─────────────────────────────────────────
 echo "[*] Installing Docker..."
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-sudo systemctl enable docker
-sudo systemctl start docker
-if [ -n "$USER" ] && [ "$USER" != "root" ]; then
-  sudo usermod -aG docker "$USER" || true
-fi
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+  > /etc/apt/sources.list.d/docker.list
+apt-get update -qq
+apt-get install -y -qq docker-ce docker-ce-cli containerd.io
+systemctl enable docker
+systemctl start docker
 echo "[+] Docker installed"
 
-# --- docker login ghcr ---
+# ─────────────────────────────────────────
+# ghcr login
+# ─────────────────────────────────────────
 echo "[*] Logging into ghcr.io..."
-echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 echo "[+] ghcr.io login done"
 
-# --- aws cli ---
+# ─────────────────────────────────────────
+# pull_image helper — 5 retries, 15s backoff
+# ─────────────────────────────────────────
+pull_image() {
+  local img=$1
+  for attempt in 1 2 3 4 5; do
+    if docker pull "$img" 2>&1; then
+      echo "[+] $img ready"
+      return 0
+    fi
+    echo "[!] Pull failed: $img (attempt $attempt/5), retrying in 15s..."
+    sleep 15
+  done
+  echo "[!] WARNING: $img could not be pulled after 5 attempts — continuing"
+  return 0  # don't fail setup, vulnmalper will handle missing images
+}
+
+# ─────────────────────────────────────────
+# pre-pull tool images in parallel
+# ─────────────────────────────────────────
+echo "[*] Pre-pulling vulnmalper tool images..."
+IMAGES=(
+  "ghcr.io/mkmithun2806/whatweb:latest"
+  "ghcr.io/mkmithun2806/wafw00f:latest"
+  "ghcr.io/mkmithun2806/testssl.sh:latest"
+  "ghcr.io/sullo/nikto:latest"
+  "ghcr.io/mkmithun2806/nuclei:latest"
+  "ghcr.io/mkmithun2806/wapiti:latest"
+  "ghcr.io/mkmithun2806/sqlmap:latest"
+  "ghcr.io/mkmithun2806/ffuf:latest"
+  "ghcr.io/mkmithun2806/feroxbuster:latest"
+  "ghcr.io/mkmithun2806/katana:latest"
+)
+
+# pull in parallel, cap at 4 concurrent
+PIDS=()
+COUNT=0
+for img in "${IMAGES[@]}"; do
+  pull_image "$img" &
+  PIDS+=($!)
+  COUNT=$((COUNT + 1))
+  if [[ $COUNT -ge 4 ]]; then
+    wait "${PIDS[0]}"
+    PIDS=("${PIDS[@]:1}")
+    COUNT=$((COUNT - 1))
+  fi
+done
+# wait for remaining
+for pid in "${PIDS[@]}"; do
+  wait "$pid"
+done
+echo "[+] Tool images ready"
+
+# ─────────────────────────────────────────
+# malper-suite (netmalper)
+# ─────────────────────────────────────────
+echo "[*] Pulling malper-suite docker image..."
+pull_image "mitchaster/malper-suite:latest"
+echo "[+] Docker image ready"
+
+# ─────────────────────────────────────────
+# aws cli
+# ─────────────────────────────────────────
 echo "[*] Installing AWS CLI..."
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
 unzip -q /tmp/awscliv2.zip -d /tmp/aws-install
-sudo /tmp/aws-install/aws/install
+/tmp/aws-install/aws/install
 rm -rf /tmp/awscliv2.zip /tmp/aws-install
 aws --version
 echo "[+] AWS CLI installed"
 
-# --- malper-analyse ---
+# ─────────────────────────────────────────
+# malper-analyse
+# ─────────────────────────────────────────
 echo "[*] Installing malper-analyse..."
-curl -sL $(curl -s https://api.github.com/repos/MKMithun2806/Malper-Analyse-Tool/releases/latest \
-  | grep "browser_download_url.*\.deb" \
-  | cut -d '"' -f 4) -o /tmp/malper-analyse.deb
-sudo dpkg -i /tmp/malper-analyse.deb
+DEB_URL=$(curl -s https://api.github.com/repos/MKMithun2806/Malper-Analyse-Tool/releases/latest \
+  | grep "browser_download_url.*\.deb" | cut -d '"' -f 4)
+curl -sL "$DEB_URL" -o /tmp/malper-analyse.deb
+dpkg -i /tmp/malper-analyse.deb
 rm /tmp/malper-analyse.deb
 echo "[+] malper-analyse installed"
 
-# --- vulnmalper ---
+# ─────────────────────────────────────────
+# vulnmalper
+# ─────────────────────────────────────────
 echo "[*] Installing vulnmalper..."
 URL=$(curl -s https://api.github.com/repos/MKMithun2806/VulnMalper/releases/latest \
   | grep browser_download_url | grep .deb | cut -d '"' -f 4)
-curl -L -o /tmp/vulnmalper.deb "$URL"
-sudo apt install -y /tmp/vulnmalper.deb
-sudo apt-get install -f -y
+curl -fsSL -o /tmp/vulnmalper.deb "$URL"
+apt install -y /tmp/vulnmalper.deb
+apt-get install -f -y
 rm -f /tmp/vulnmalper.deb
 echo "[+] vulnmalper installed"
 
-# --- docker image ---
-echo "[*] Pulling malper-suite docker image..."
-sudo docker pull mitchaster/malper-suite:latest
-echo "[+] Docker image ready"
-
-# --- httpx ---
+# ─────────────────────────────────────────
+# httpx
+# ─────────────────────────────────────────
 echo "[*] Installing httpx..."
-tmp=$(mktemp -d) && cd "$tmp"
-url=$(curl -fsSL https://api.github.com/repos/projectdiscovery/httpx/releases/latest \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if 'linux_amd64' in a.get('name','') and a.get('name','').endswith('.zip')), ''))")
-curl -fL "$url" -o httpx.zip
-unzip -o httpx.zip && chmod +x httpx
-sudo mv httpx /usr/local/bin/
-cd / && rm -rf "$tmp"
+tmp=$(mktemp -d)
+HTTPX_URL=$(curl -fsSL https://api.github.com/repos/projectdiscovery/httpx/releases/latest \
+  | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(next((a['browser_download_url'] for a in d.get('assets',[])
+  if 'linux_amd64' in a.get('name','') and a.get('name','').endswith('.zip')), ''))
+")
+curl -fsSL "$HTTPX_URL" -o "$tmp/httpx.zip"
+unzip -o "$tmp/httpx.zip" -d "$tmp"
+chmod +x "$tmp/httpx"
+mv "$tmp/httpx" /usr/local/bin/
+rm -rf "$tmp"
 httpx -version
 echo "[+] httpx installed"
 
-# --- chromium ---
-if [ "$MODE" == "head" ]; then
+# ─────────────────────────────────────────
+# chromium (head mode only)
+# ─────────────────────────────────────────
+if [[ "$MODE" == "head" ]]; then
   echo "[*] Installing chromium..."
-  # Ubuntu 22.04 chromium-browser is a snap. Ensure snapd is ready.
-  sudo systemctl start snapd || true
-  # Attempt installation with retries due to potential snap store timeouts
+  systemctl start snapd || true
   for i in {1..5}; do
-    if sudo apt-get install -y chromium-browser; then
+    if apt-get install -y chromium-browser; then
       echo "[+] chromium installed"
       break
     fi
-    echo "[!] Chromium installation failed, retrying in 10s ($i/5)..."
+    echo "[!] Chromium install failed, retrying ($i/5)..."
     sleep 10
   done
 else
   echo "[*] Skipping chromium (MODE is not 'head')"
 fi
 
+# ─────────────────────────────────────────
+# orchestrator
+# ─────────────────────────────────────────
 echo ""
 echo "[*] Pulling orchestrator..."
 curl -fsSL https://raw.githubusercontent.com/MKMithun2806/Project-Watchdog-V2/refs/heads/main/Scripts/malper.sh \
@@ -137,7 +216,6 @@ curl -fsSL https://raw.githubusercontent.com/MKMithun2806/Project-Watchdog-V2/re
 chmod +x /usr/local/bin/malper.sh
 echo "[+] Orchestrator ready"
 
-tg "✅ *Setup complete!*%0AStarting orchestrator..."
-
+tg "✅ *Setup complete\!*%0AStarting orchestrator..."
 echo "[*] Starting orchestrator..."
-/usr/local/bin/malper.sh
+exec /usr/local/bin/malper.sh
