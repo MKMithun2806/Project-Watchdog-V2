@@ -137,6 +137,8 @@ resource "aws_lambda_function" "malper" {
       SUPABASE_KEY     = var.supabase_key
       SUPABASE_BUCKET  = var.supabase_bucket
       OPENROUTER_API_KEY = var.openrouter_api_key
+      GHCR_USER  = var.ghcr_user
+      GHCR_TOKEN = var.ghcr_token
       SETUP_SCRIPT_URL   = var.setup_script_url
       API_KEY          = var.api_key
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token

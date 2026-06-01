@@ -9,3 +9,5 @@ variable "setup_script_url"  {}  # GitHub raw URL for setup.sh
 variable "api_key"            { sensitive = true }
 variable "telegram_bot_token"  { sensitive = true }
 variable "telegram_chat_id"    {}
+variable "ghcr_user"  {}
+variable "ghcr_token" { sensitive = true }

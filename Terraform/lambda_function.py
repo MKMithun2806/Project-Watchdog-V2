@@ -24,6 +24,8 @@ SETUP_SCRIPT_URL = os.environ['SETUP_SCRIPT_URL']
 API_KEY            = os.environ['API_KEY']
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 TELEGRAM_CHAT_ID   = os.environ['TELEGRAM_CHAT_ID']
+GHCR_USER          = os.environ['GHCR_USER']
+GHCR_TOKEN         = os.environ['GHCR_TOKEN']
 
 
 def lambda_handler(event, context):
@@ -53,6 +55,8 @@ export MODE="{mode}"
 export VULNMALPER_FLAGS="{v_flags}"
 export NETMALPER_FLAGS="{n_flags}"
 export EXPORT_JSON="{'true' if export_json else 'false'}"
+export GHCR_USER="{GHCR_USER}"
+export GHCR_TOKEN="{GHCR_TOKEN}"
 export SUPABASE_URL="{SUPABASE_URL}"
 export SUPABASE_KEY="{SUPABASE_KEY}"
 export SUPABASE_BUCKET="{SUPABASE_BUCKET}"

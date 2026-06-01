@@ -62,6 +62,11 @@ if [ -n "$USER" ] && [ "$USER" != "root" ]; then
 fi
 echo "[+] Docker installed"
 
+# --- docker login ghcr ---
+echo "[*] Logging into ghcr.io..."
+echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+echo "[+] ghcr.io login done"
+
 # --- aws cli ---
 echo "[*] Installing AWS CLI..."
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
