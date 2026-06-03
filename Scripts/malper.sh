@@ -148,14 +148,32 @@ fi
 tg "🧠 *malper-analyse started*"
 echo "[*] Running malper-analyse..."
 cd "$SCAN_DIR"
-malper-analyse "$(basename "$REPORT")" 2>&1 | tee -a /var/log/malper.log
 
-SUMMARY=$(ls "$SCAN_DIR"/*_analysed_*.md 2>/dev/null | head -1)
-if [[ -z "$SUMMARY" ]]; then
-  tg "❌ *malper-analyse failed* — no summary produced"
-  exit 1
+SUMMARY=""
+if malper-analyse "$(basename "$REPORT")" 2>&1 | tee -a /var/log/malper.log; then
+  SUMMARY=$(ls "$SCAN_DIR"/*_analysed_*.md 2>/dev/null | head -1)
 fi
-echo "[+] Summary: $SUMMARY"
+
+if [[ -z "$SUMMARY" ]]; then
+  echo "[!] malper-analyse failed or produced no output — creating fallback summary"
+  tg "⚠️ *malper-analyse failed* — using fallback summary"
+  TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+  SUMMARY="$SCAN_DIR/vulnmalper_${TARGET}_${TIMESTAMP}_analysed_${TIMESTAMP}.md"
+  cat > "$SUMMARY" << 'EOF'
+# Analysis Failed
+
+malper-analyse was unable to process this report.
+
+This may be due to an OpenRouter API error, a timeout, or an issue with the report format.
+
+The raw vulnerability report is available in the **Raw Report** tab.
+
+**Status:** FAILED
+EOF
+  echo "[+] Fallback summary created: $SUMMARY"
+else
+  echo "[+] Summary: $SUMMARY"
+fi
 
 # ─────────────────────────────────────────
 # 4. push to supabase
