@@ -91,3 +91,4 @@ curl -X POST https://<your-api-endpoint>/scan \
 ## USAGE POLICY
 
 **AUTHORIZED TESTING ONLY.** This software is designed for security professionals and researchers. Usage against targets without explicit permission is strictly prohibited and may be illegal.
+
