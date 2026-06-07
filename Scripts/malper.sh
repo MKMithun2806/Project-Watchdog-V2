@@ -84,7 +84,7 @@ case "${MODE:-normal}" in
 esac
 
 if [[ "$EXPORT_JSON" == "true" ]]; then
-  VULNMALPER_FLAGS="$VULNMALPER_FLAGS --export-json"
+  VULNMALPER_FLAGS="$VULNMALPER_FLAGS --export-json /opt/malper/scans/$TARGET"
   echo "[*] JSON export enabled"
 fi
 
