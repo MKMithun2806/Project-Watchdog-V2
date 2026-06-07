@@ -43,7 +43,7 @@ The system operates on a "Trigger-and-Terminate" model, ensuring maximum cost-ef
 
 *   `Scripts/` : The "Brain" - Contains orchestrator and bootstrap logic.
 *   `Terraform/` : The "Skeleton" - Defines the entire AWS infrastructure.
-*   `docs/` : The "Manual" - Comprehensive guides for deployment and operation.
+*   `docs/` : The "Manual" - Comprehensive guides for deployment, operation, and the [Web UI](docs/webui-guide.md).
 *   `examples/` : The "Templates" - Payload and configuration examples.
 
 ---
