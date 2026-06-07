@@ -88,11 +88,20 @@ if [[ "$EXPORT_JSON" == "true" ]]; then
   echo "[*] JSON export enabled"
 fi
 
+PROXY_FLAG=""
+if [[ -f /tmp/proxies.txt ]]; then
+  PROXY_FLAG="--proxy-file /tmp/proxies.txt"
+  echo "[*] Proxy file detected: $(wc -l < /tmp/proxies.txt) proxies"
+else
+  echo "[*] No proxy file"
+fi
+
 echo "[*] Target : $TARGET"
 echo "[*] Mode   : ${MODE:-normal}"
 echo "[*] V-Flags: ${VULNMALPER_FLAGS:-none}"
 echo "[*] N-Flags: ${NETMALPER_FLAGS:-none}"
 echo "[*] JSON   : ${EXPORT_JSON}"
+echo "[*] Proxies: $([ -f /tmp/proxies.txt ] && echo "yes ($(wc -l < /tmp/proxies.txt) lines)" || echo "none")"
 
 SCAN_BASE="/opt/malper/scans"
 SCAN_DIR="$SCAN_BASE/$TARGET"
@@ -123,7 +132,7 @@ echo "[+] Graph: $GRAPH"
 tg "🔎 *vulnmalper started*%0AMode: \`${MODE:-normal}\`"
 echo "[*] Running vulnmalper (mode: ${MODE:-normal})..."
 cd "$SCAN_DIR"
-sudo vulnmalper "$(basename "$GRAPH")" $VULNMALPER_FLAGS 2>&1 | tee -a /var/log/malper.log
+sudo vulnmalper $VULNMALPER_FLAGS $PROXY_FLAG "$(basename "$GRAPH")" 2>&1 | tee -a /var/log/malper.log
 
 REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.md 2>/dev/null | grep -v '_analysed_' | head -1)
 if [[ -z "$REPORT" ]]; then

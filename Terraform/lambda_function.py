@@ -37,6 +37,13 @@ def lambda_handler(event, context):
     target = body.get('target', '').strip()
     mode   = body.get('mode', 'normal').strip().lower()
     export_json = bool(body.get('export_json', False))
+    proxy_lines = body.get('proxy_lines', None)
+    if proxy_lines and isinstance(proxy_lines, str):
+        # enforce 15 line max server-side too
+        lines = [l.strip() for l in proxy_lines.strip().split('\n') if l.strip()][:15]
+        proxy_lines = '\n'.join(lines) if lines else None
+    else:
+        proxy_lines = None
 
     INSTANCE_TYPE = 't3.small' if mode == 'normal' else 't3.large'
 
@@ -48,6 +55,14 @@ def lambda_handler(event, context):
 
     v_flags = MODES[mode]['v_flags']
     n_flags = MODES[mode]['n_flags']
+    proxy_block = ""
+    if proxy_lines:
+        proxy_block = f"""
+cat > /tmp/proxies.txt << 'PROXYEOF'
+{proxy_lines}
+PROXYEOF
+echo "[+] proxies.txt written"
+"""
 
     user_data = f"""#!/bin/bash
 export TARGET="{target}"
@@ -63,6 +78,7 @@ export SUPABASE_BUCKET="{SUPABASE_BUCKET}"
 export OPENROUTER_API_KEY="{OPENROUTER_KEY}"
 export TELEGRAM_BOT_TOKEN="{TELEGRAM_BOT_TOKEN}"
 export TELEGRAM_CHAT_ID="{TELEGRAM_CHAT_ID}"
+{proxy_block}
 
 curl -fsSL {SETUP_SCRIPT_URL} -o /tmp/setup.sh
 chmod +x /tmp/setup.sh
@@ -115,5 +131,6 @@ bash /tmp/setup.sh >> /var/log/malper.log 2>&1
             'target': target,
             'mode': mode,
             'export_json': export_json,
+            'has_proxies': proxy_lines is not None,
         })
     }
