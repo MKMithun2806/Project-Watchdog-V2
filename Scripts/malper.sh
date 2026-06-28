@@ -20,6 +20,10 @@ if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
 fi
 
 EXPORT_JSON="${EXPORT_JSON:-false}"
+TIMESTAMP="$(date -u +"%Y%m%d_%H%M%S")"
+TARGET_SAFE="${TARGET//[^A-Za-z0-9._-]/_}"
+SCAN_BASE="/opt/malper/scans"
+SCAN_DIR="$SCAN_BASE/$TARGET"
 
 export OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
 
@@ -63,19 +67,41 @@ on_error() {
 
 trap 'on_error $LINENO' ERR
 
+find_latest_graph() {
+  find "$SCAN_DIR" -maxdepth 1 -type f \( -name 'graph.json' -o -name '*_graph.json' \) -printf '%T@ %p\n' 2>/dev/null \
+    | sort -nr \
+    | head -1 \
+    | cut -d' ' -f2-
+}
+
+find_latest_report() {
+  find "$SCAN_DIR" -maxdepth 1 -type f -name 'vulnmalper_*.md' ! -name '*_analysed_*' -printf '%T@ %p\n' 2>/dev/null \
+    | sort -nr \
+    | head -1 \
+    | cut -d' ' -f2-
+}
+
+find_latest_analysis() {
+  find "$SCAN_DIR" -maxdepth 1 -type f -name '*_analysed_*.md' -printf '%T@ %p\n' 2>/dev/null \
+    | sort -nr \
+    | head -1 \
+    | cut -d' ' -f2-
+}
+
 # --- mode flags ---
-VULNMALPER_FLAGS=""
-NETMALPER_FLAGS=""
+VULNMALPER_ARGS=(--runner auto --threads 3)
+NETMALPER_ARGS=()
+PROXY_ARGS=()
 
 case "${MODE:-normal}" in
   normal)
     ;;
   stealth)
-    VULNMALPER_FLAGS="--polite --slow"
-    NETMALPER_FLAGS="--stealth"
+    VULNMALPER_ARGS=(--polite --slow --runner auto --threads 3)
+    NETMALPER_ARGS=(--stealth)
     ;;
   head)
-    VULNMALPER_FLAGS="--polite --quiet --headless"
+    VULNMALPER_ARGS=(--polite --quiet --headless --runner auto --threads 3)
     ;;
   *)
     echo "[!] Unknown mode: $MODE (valid: normal, stealth, head)"
@@ -84,13 +110,13 @@ case "${MODE:-normal}" in
 esac
 
 if [[ "$EXPORT_JSON" == "true" ]]; then
-  VULNMALPER_FLAGS="$VULNMALPER_FLAGS --export-json /opt/malper/scans/$TARGET"
-  echo "[*] JSON export enabled"
+  JSON_EXPORT_FILE="$SCAN_DIR/vulnmalper_${TARGET_SAFE}_${TIMESTAMP}.json"
+  VULNMALPER_ARGS+=(--export-json "$JSON_EXPORT_FILE")
+  echo "[*] JSON export enabled: $JSON_EXPORT_FILE"
 fi
 
-PROXY_FLAG=""
 if [[ -f /tmp/proxies.txt ]]; then
-  PROXY_FLAG="--proxy-file /tmp/proxies.txt"
+  PROXY_ARGS=(--proxy-file /tmp/proxies.txt)
   echo "[*] Proxy file detected: $(wc -l < /tmp/proxies.txt) proxies"
 else
   echo "[*] No proxy file"
@@ -98,13 +124,20 @@ fi
 
 echo "[*] Target : $TARGET"
 echo "[*] Mode   : ${MODE:-normal}"
-echo "[*] V-Flags: ${VULNMALPER_FLAGS:-none}"
-echo "[*] N-Flags: ${NETMALPER_FLAGS:-none}"
+echo "[*] V-Args : ${VULNMALPER_ARGS[*]}"
+if ((${#NETMALPER_ARGS[@]})); then
+  echo "[*] N-Args : ${NETMALPER_ARGS[*]}"
+else
+  echo "[*] N-Args : none"
+fi
+if ((${#PROXY_ARGS[@]})); then
+  echo "[*] P-Args : ${PROXY_ARGS[*]}"
+else
+  echo "[*] P-Args : none"
+fi
 echo "[*] JSON   : ${EXPORT_JSON}"
 echo "[*] Proxies: $([ -f /tmp/proxies.txt ] && echo "yes ($(wc -l < /tmp/proxies.txt) lines)" || echo "none")"
 
-SCAN_BASE="/opt/malper/scans"
-SCAN_DIR="$SCAN_BASE/$TARGET"
 mkdir -p "$SCAN_DIR"
 
 tg "🟢 *Malper Online*%0ATarget: \`$TARGET\` | Mode: \`${MODE:-normal}\`"
@@ -117,9 +150,9 @@ echo "[*] Running netmalper..."
 sudo docker run --rm --network host \
   -v "$SCAN_DIR":/app \
   mitchaster/malper-suite:latest \
-  "$TARGET" $NETMALPER_FLAGS 2>&1 | tee -a /var/log/malper.log
+  "$TARGET" "${NETMALPER_ARGS[@]}" 2>&1 | tee -a /var/log/malper.log
 
-GRAPH=$(ls "$SCAN_DIR"/*_graph.json 2>/dev/null | head -1)
+GRAPH=$(find_latest_graph)
 if [[ -z "$GRAPH" ]]; then
   tg "❌ *netmalper failed* — no graph JSON produced"
   exit 1
@@ -132,9 +165,12 @@ echo "[+] Graph: $GRAPH"
 tg "🔎 *vulnmalper started*%0AMode: \`${MODE:-normal}\`"
 echo "[*] Running vulnmalper (mode: ${MODE:-normal})..."
 cd "$SCAN_DIR"
-sudo vulnmalper $VULNMALPER_FLAGS $PROXY_FLAG "$(basename "$GRAPH")" 2>&1 | tee -a /var/log/malper.log
+VULNMALPER_CMD=(sudo vulnmalper "${VULNMALPER_ARGS[@]}" "${PROXY_ARGS[@]}" "$(basename "$GRAPH")")
+printf -v VULNMALPER_CMD_STR '%q ' "${VULNMALPER_CMD[@]}"
+echo "[*] Command: ${VULNMALPER_CMD_STR% }"
+"${VULNMALPER_CMD[@]}" 2>&1 | tee -a /var/log/malper.log
 
-REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.md 2>/dev/null | grep -v '_analysed_' | head -1)
+REPORT=$(find_latest_report)
 if [[ -z "$REPORT" ]]; then
   tg "❌ *vulnmalper failed* — no report produced"
   exit 1
@@ -143,7 +179,14 @@ echo "[+] Report: $REPORT"
 
 JSON_REPORT=""
 if [[ "$EXPORT_JSON" == "true" ]]; then
-  JSON_REPORT=$(ls "$SCAN_DIR"/vulnmalper_*.json 2>/dev/null | head -1)
+  if [[ -f "$JSON_EXPORT_FILE" ]]; then
+    JSON_REPORT="$JSON_EXPORT_FILE"
+  else
+    JSON_REPORT=$(find "$SCAN_DIR" -maxdepth 1 -type f -name 'vulnmalper_*.json' -printf '%T@ %p\n' 2>/dev/null \
+      | sort -nr \
+      | head -1 \
+      | cut -d' ' -f2-)
+  fi
   if [[ -z "$JSON_REPORT" ]]; then
     echo "[!] JSON export was requested but no JSON file found — skipping"
   else
@@ -160,7 +203,7 @@ cd "$SCAN_DIR"
 
 SUMMARY=""
 if malper-analyse "$(basename "$REPORT")" 2>&1 | tee -a /var/log/malper.log; then
-  SUMMARY=$(ls "$SCAN_DIR"/*_analysed_*.md 2>/dev/null | head -1)
+  SUMMARY=$(find_latest_analysis)
 fi
 
 if [[ -z "$SUMMARY" ]]; then

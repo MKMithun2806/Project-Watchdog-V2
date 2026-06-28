@@ -6,9 +6,9 @@ import os
 ec2 = boto3.client('ec2', region_name=os.environ['AWS_REGION'])
 
 MODES = {
-    'normal':  {'v_flags': '', 'n_flags': ''},
-    'stealth': {'v_flags': '--polite --slow', 'n_flags': '--stealth'},
-    'head':    {'v_flags': '--polite --quiet --headless', 'n_flags': ''},
+    'normal':  {'n_flags': ''},
+    'stealth': {'n_flags': '--stealth'},
+    'head':    {'n_flags': ''},
 }
 
 AMI_ID        = os.environ['AMI_ID']
@@ -53,7 +53,6 @@ def lambda_handler(event, context):
     if mode not in MODES:
         return {'statusCode': 400, 'body': json.dumps({'error': f'invalid mode, pick: {list(MODES.keys())}'})}
 
-    v_flags = MODES[mode]['v_flags']
     n_flags = MODES[mode]['n_flags']
     proxy_block = ""
     if proxy_lines:
@@ -67,7 +66,6 @@ echo "[+] proxies.txt written"
     user_data = f"""#!/bin/bash
 export TARGET="{target}"
 export MODE="{mode}"
-export VULNMALPER_FLAGS="{v_flags}"
 export NETMALPER_FLAGS="{n_flags}"
 export EXPORT_JSON="{'true' if export_json else 'false'}"
 export GHCR_USER="{GHCR_USER}"
